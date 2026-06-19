@@ -1,0 +1,109 @@
+### Books REST API — Chapter 12 安全加固测试
+### 使用 VS Code "REST Client" 或 Postman 运行
+
+@host  = http://localhost:8000
+@token = eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJib29rcy1hcGkiLCJzdWIiOjMsImlhdCI6MTc4MTU5NDQzMSwiZXhwIjoxNzgxNTk4MDMxLCJyb2xlIjoiYWRtaW4iLCJlbWFpbCI6ImFkbWluQGJvb2tzLnRlc3QifQ.qq83yd5o9wxWn9dN74Ns9jHb6leebRQ78g_YK21zbfg
+
+# ===============================================================
+# 1. 健康检查 — 查看当前安全状态
+# ===============================================================
+
+### 获取书籍列表（需要 Token）
+GET {{host}}/api/books
+Authorization: Bearer {{token}}
+
+
+# ===============================================================
+# 2. 登录测试（默认限制 5次/60秒）
+# ===============================================================
+
+### 管理员登录
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@books.test", "password": "password" }
+
+### 普通成员登录
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "email": "member@books.test", "password": "password" }
+
+### 错误密码 — 连续点6次触发 429 限流
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@books.test", "password": "wrong" }
+
+
+# ===============================================================
+# 3. XSS 防护测试 — JSON 输出会对特殊字符进行转义
+# ===============================================================
+
+### 尝试存储一个 XSS 攻击脚本（会被安全转义）
+POST {{host}}/api/books
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title":  "<script>alert('xss')</script>",
+  "author": "Attacker",
+  "year":   2024
+}
+
+### 读取回来 — 会看到 < > 被转义成 \u003C \u003E
+GET {{host}}/api/books
+Authorization: Bearer {{token}}
+
+
+# ===============================================================
+# 4. IDOR 越权防护测试 — 只有作者或管理员才能修改
+# ===============================================================
+
+### 普通成员尝试更新别人的书（预期返回 403 禁止访问）
+PUT {{host}}/api/books/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "title": "Hijacked" }
+
+### 管理员更新同一本书（预期返回 200 成功）
+PUT {{host}}/api/books/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "genre": "Software Craftsmanship" }
+
+
+# ===============================================================
+# 5. 输入验证测试 — 服务器会拒绝非法输入（返回 400）
+# ===============================================================
+
+### 年份超出范围（9999 > 当前年份，预期 400）
+POST {{host}}/api/books
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "title": "Future Book", "author": "Time Traveller", "year": 9999 }
+
+### 标题超过 200 个字符（预期 400）
+POST {{host}}/api/books
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "title": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "author": "Test", "year": 2024 }
+
+
+# ===============================================================
+# 6. CORS 跨域测试 — 只有白名单里的域名才能携带凭证
+# ===============================================================
+
+### 从允许的域名发起预检请求（会返回允许的 CORS 头）
+OPTIONS {{host}}/api/books
+Origin: http://localhost:5173
+Access-Control-Request-Method: POST
+
+### 从恶意域名发起预检请求（不会被放行）
+OPTIONS {{host}}/api/books
+Origin: http://attacker.example
+Access-Control-Request-Method: POST

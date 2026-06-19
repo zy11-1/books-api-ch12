@@ -1,0 +1,23 @@
+[
+    {
+        "id": 1,
+        "title": "Clean Code",
+        "author": "Robert C. Martin",
+        "year": 2009,
+        "genre": "Software Engineering"
+    },
+    {
+        "id": 3,
+        "title": "Vue.js 3 By Example",
+        "author": "John Au-Yeung",
+        "year": 2021,
+        "genre": "Web Development"
+    },
+    {
+        "id": 4,
+        "title": "Node.js Design Patterns",
+        "author": "Mario Casciaro",
+        "year": 2020,
+        "genre": "Programming"
+    }
+]
