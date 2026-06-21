@@ -22,11 +22,15 @@ export const useAuth = defineStore('auth', {
         this.token = data.access_token;
         localStorage.setItem('token', this.token);
 
-        // 2. ✅ 请求用户信息（获取真实 role）
-        const { data: userData } = await axios.get(`${baseURL}/auth/me`, {
-          headers: { Authorization: `Bearer ${data.access_token}` }
-        });
-        this.user = userData;
+        // 2. ✅ 直接从 JWT Token 解析用户信息
+        // JWT payload 中包含: sub(id), email, role, name(如果有)
+        const payload = JSON.parse(atob(this.token.split('.')[1]));
+        this.user = {
+          id: payload.sub,
+          email: payload.email,
+          role: payload.role,
+          name: payload.name || 'User'
+        };
         localStorage.setItem('user', JSON.stringify(this.user));
 
         console.log('✅ 登录成功:', this.user);
